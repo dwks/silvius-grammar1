@@ -15,51 +15,65 @@ class MyClient(WebSocketClient):
 
     def __init__(self, url, mic=1, protocols=None, extensions=None, heartbeat_freq=None, byterate=16000,
                  show_hypotheses=True,
-                 save_adaptation_state_filename=None, send_adaptation_state_filename=None):
+                 save_adaptation_state_filename=None, send_adaptation_state_filename=None, audio_gate=0):
         super(MyClient, self).__init__(url, protocols, extensions, heartbeat_freq)
         self.mic = mic
         self.show_hypotheses = show_hypotheses
         self.byterate = byterate
         self.save_adaptation_state_filename = save_adaptation_state_filename
         self.send_adaptation_state_filename = send_adaptation_state_filename
+        self.audio_gate = audio_gate
 
     def send_data(self, data):
         self.send(data, binary=True)
 
     def opened(self):
         import pyaudio
+        import audioop
         pa = pyaudio.PyAudio()
-        try:
-            mic = self.mic
-            if mic == -1:
-                mic = pa.get_default_input_device_info()['index']
-                print >> sys.stderr, "Selecting default mic"
-            print >> sys.stderr, "Using mic #", mic
-            stream = pa.open(
-                rate = self.byterate,
-                format = pyaudio.paInt16,
-                channels = 1,
-                input = True,
-                input_device_index = mic)
-        except IOError, e:
-            if(e.errno == 'Invalid sample rate'):
-                print >> sys.stderr, "\n", e
-                print >> sys.stderr, "\nCould not open microphone. 16K sampling not directly supported."
-                print >> sys.stderr, "Instead of using this device directly, please configure it from"
-                print >> sys.stderr, "within alsa or pulseaudio (run pavucontrol), which can do resampling."
-            else:
-                print >> sys.stderr, "\n", e
-                print >> sys.stderr, "\nCould not open microphone. Please try a different device."
-            global fatal_error
-            fatal_error = True
-            sys.exit(0)
-
+        sample_rate = self.byterate
+        stream = None 
+        
+        while stream is None:
+            try:
+                mic = self.mic
+                if mic == -1:
+                    mic = pa.get_default_input_device_info()['index']
+                    print >> sys.stderr, "Selecting default mic"
+                print >> sys.stderr, "Using mic #", mic
+                stream = pa.open(
+                    rate = sample_rate,
+                    format = pyaudio.paInt16,
+                    channels = 1,
+                    input = True,
+                    input_device_index = mic)
+            except IOError, e:
+                if(e.errno == 'Invalid sample rate'):
+                    sample_rate = int(pa.get_device_info_by_index(mic)['defaultSampleRate']) 
+                else:
+                    print >> sys.stderr, "\n", e
+                    print >> sys.stderr, "\nCould not open microphone. Please try a different device."
+                    global fatal_error
+                    fatal_error = True
+                    sys.exit(0)
+     
         def mic_to_ws():  # uses stream
             try:
                 print >> sys.stderr, "\nLISTENING TO MICROPHONE"
+                last_state = None
+                chunk = 2048 * 2 * sample_rate / self.byterate
                 while True:
-                    data = stream.read(2048*2)
-                    #print >> sys.stderr, "sending", len(data), "bytes... ",
+                    data = stream.read(chunk)
+                    if self.audio_gate > 0:
+                        rms = audioop.rms(data, 2)
+                        if rms < self.audio_gate:
+                            data = '\00' * len(data)
+                    #print >> sys.stderr, len(data), rms, audioop.rms(data,2)
+                    #if sample_chan == 2:
+                    #    data = audioop.tomono(data, 2, 1, 1)
+                    if sample_rate != self.byterate:
+                        (data, last_state) = audioop.ratecv(data, 2, 1, sample_rate, self.byterate, last_state)
+                    #print >> sys.stderr, "sending", len(data), "bytes... "
                     self.send_data(data)
             except IOError, e:
                 # usually a broken pipe
@@ -134,6 +148,7 @@ def setup():
     parser.add_argument('--send-adaptation-state', help="Send adaptation state from file")
     parser.add_argument('--content-type', default=content_type, help="Use the specified content type (default is " + content_type + ")")
     parser.add_argument('--hypotheses', default=True, type=int, help="Show partial recognition hypotheses (default: 1)")
+    parser.add_argument('-g', '--audio-gate', default=0, type=int, help="Audio-gate level to reduce detections when not talking")
     args = parser.parse_args()
 
     content_type = args.content_type
@@ -154,7 +169,7 @@ def run(args, content_type, path):
     print >> sys.stderr, "Connecting to", uri
 
     ws = MyClient(uri, byterate=16000, mic=args.device, show_hypotheses=args.hypotheses,
-                  save_adaptation_state_filename=args.save_adaptation_state, send_adaptation_state_filename=args.send_adaptation_state)
+                  save_adaptation_state_filename=args.save_adaptation_state, send_adaptation_state_filename=args.send_adaptation_state, audio_gate=args.audio_gate)
     ws.connect()
     #result = ws.get_full_hyp()
     #print result.encode('utf-8')
