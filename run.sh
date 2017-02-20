@@ -35,6 +35,6 @@ echo "Selected microphone $which."
 
 if [[ $1 == '-e' || $1 == '--execute' ]]; then
     python stream/mic.py -s silvius-server.voxhub.io -d $which | python grammar/main.py
-elif [[ $1 == 't' || $1 == '--test' ]]; then
+elif [[ $1 == '-t' || $1 == '--test' ]]; then
     python stream/mic.py -s silvius-server.voxhub.io -d $which
 fi
