@@ -22,6 +22,7 @@ class MyClient(WebSocketClient):
         self.byterate = byterate
         self.save_adaptation_state_filename = save_adaptation_state_filename
         self.send_adaptation_state_filename = send_adaptation_state_filename
+        self.audio_gate = audio_gate
         self.chunk = 0
         self.audio_gate = audio_gate
 
