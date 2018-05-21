@@ -230,11 +230,13 @@ class CoreParser(GenericParser):
             modifiers ::= control single_command
             modifiers ::= alt single_command
             modifiers ::= alternative single_command
+            modifiers ::= super chained_commands
         '''
         value = {
             'control' : 'ctrl',
             'alt' : 'alt',
-            'alternative' : 'alt'
+            'alternative' : 'alt',
+            'super' : 'Super_L'
         }
         if(args[1].type == 'mod_plus_key'):
             args[1].meta.insert(0, value[args[0].type])
