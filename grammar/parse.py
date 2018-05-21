@@ -230,8 +230,8 @@ class CoreParser(GenericParser):
             modifiers ::= control single_command
             modifiers ::= alt single_command
             modifiers ::= alternative single_command
-            modifiers ::= super chained_commands
             modifiers ::= super single_command
+            modifiers ::= shift single_command
         '''
         value = {
             'control' : 'ctrl',
