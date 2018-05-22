@@ -129,7 +129,7 @@ class CoreParser(GenericParser):
             letter ::= india
             letter ::= julia
             letter ::= kilo
-            letter ::= line
+            letter ::= lima
             letter ::= mike
             letter ::= november
             letter ::= oscar
