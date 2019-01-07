@@ -42,3 +42,5 @@
 `/usr/bin/xdotool key ctrl+Left`
 `/usr/bin/xdotool key 2 key 5`
 `/usr/bin/xdotool key 4 key 0 key 2 key 8 key 1 key 5`
+`/usr/bin/xdotool key w key i key n key d key o key w key space key s key e key n key t key e key n key c key e key space key p key h key r key a key s key e`
+`/usr/bin/xdotool key H key e key l key l key o key space key t key h key e key r key e key comma key space key h key o key w key space key a key r key e key space key y key o key u key question`

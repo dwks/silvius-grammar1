@@ -1,6 +1,6 @@
 # Main file. Parse new commands from stdin until EOF.
 
-from scan import find_keywords
+from scan import install_keywords
 from scan import scan
 from parse import parse
 from parse import GrammaticalError
@@ -17,7 +17,7 @@ if __name__ == '__main__':
         f = sys.stdin
 
     parser = SingleInputParser()
-    find_keywords(parser)  # init lexer
+    install_keywords(parser)  # init lexer
 
     while True:
         line = f.readline()

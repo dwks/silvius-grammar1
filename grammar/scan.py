@@ -1,11 +1,8 @@
 # Lexer that produces a sequence of tokens (keywords + ANY).
 
-import re
-from lm import get_terminals
-
-def find_keywords(parser):
+def install_keywords(parser):
     global keywords
-    keywords = get_terminals(parser)
+    keywords = parser.terminals
 
 class Token:
     def __init__(self, type, wordno=-1, extra=''):

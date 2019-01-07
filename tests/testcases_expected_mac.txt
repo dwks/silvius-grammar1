@@ -42,3 +42,5 @@
 `cliclick w:10 kd:ctrl kp:arrow-left ku:ctrl`
 `cliclick t:2 t:5`
 `cliclick t:4 t:0 t:2 t:8 t:1 t:5`
+`cliclick t:w t:i t:n t:d t:o t:w kp:space t:s t:e t:n t:t t:e t:n t:c t:e kp:space t:p t:h t:r t:a t:s t:e`
+`cliclick t:H t:e t:l t:l t:o kp:space t:t t:h t:e t:r t:e t:',' kp:space t:h t:o t:w kp:space t:a t:r t:e kp:space t:y t:o t:u t:'?'`

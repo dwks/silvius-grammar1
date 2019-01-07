@@ -109,24 +109,16 @@ def make_lm(rules, visited, which, prefix):
                 print prefix, t
                 new_prefix.append(t)
 
-def get_terminals(parser):
-    visited = {}
-    terminals = []
-    find_terminals(parser.rules, visited, 'START', terminals)
-    keywords = set(terminals)
-    return sorted(keywords)
-
 if __name__ == '__main__':
     import sys
     parser = SingleInputParser()
     #for rule in parser.rules:
     #    print rule, parser.rules[rule]
 
-    visited = {}
+    #visited = {}
     #make_lm(parser.rules, visited, 'START', [])
-    terminals = []
-    find_terminals(parser.rules, visited, 'START', terminals)
-    #print terminals
+
+    terminals = parser.terminals
 
     visited = {}
     find_sequences(parser.rules, visited, 'START')
