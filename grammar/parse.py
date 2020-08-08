@@ -4,15 +4,43 @@ from spark import GenericParser
 from spark import GenericASTBuilder
 from ast import AST
 
+# subgrammars are loaded from the grammars/ subpackage
+from grammars import numbers
+from grammars import english
+from grammars import yesno
+
 class GrammaticalError(Exception):
     def __init__(self, string):
         self.string = string
     def __str__(self):
         return self.string
 
-class CoreParser(GenericParser):
+# include the subgrammars as mixin classes. This makes all the rule
+# functions accessible in the CoreParser (and the actual parser in
+# GenericParser), and allows the subgrammar classes to call
+# 'add_subgrammar' from their __init__ methods.
+class CoreParser(GenericParser,
+                 numbers.NumberGrammarMixin,
+                 english.EnglishGrammarMixin,
+                 yesno.YesNoGrammarMixin):
+
     def __init__(self, start):
+        # call __init__ on all mixin classes
+        # skip GenericParser, we'll call that as the last one
+        for base in CoreParser.__bases__:
+            if base.__name__ is not "GenericParser":
+                base.__init__(self, start)
+        # now set up the actual parser
         GenericParser.__init__(self, start)
+
+    # this method will be called by any subgrammars that want
+    # to hook themselves into the main grammar.
+    # this adds one or more rules to the 'single_command' ruleset.
+    def add_subgrammar(self, subgrammar_start_rule_names):
+        func = CoreParser.__dict__['p_single_command']
+        for start_rule_name in subgrammar_start_rule_names:
+            func.__doc__ += ("single_command ::= " + start_rule_name + "\n")
+
 
     def typestring(self, token):
         return token.type
@@ -36,14 +64,10 @@ class CoreParser(GenericParser):
         '''
             single_command ::= letter
             single_command ::= sky_letter
-            single_command ::= number_rule
             single_command ::= movement
             single_command ::= character
             single_command ::= editing
             single_command ::= modifiers
-            single_command ::= english
-            single_command ::= word_sentence
-            single_command ::= word_phrase
         '''
         return args[0]
 
@@ -71,146 +95,6 @@ class CoreParser(GenericParser):
         else:
             return None
 
-    small_numbers = {
-        'zero'      : 0,
-        'one'       : 1,
-        'two'       : 2,
-        'three'     : 3,
-        'four'      : 4,
-        'five'      : 5,
-        'six'       : 6,
-        'seven'     : 7,
-        'eight'     : 8,
-        'nine'      : 9,
-        'ten'       : 10,
-        'eleven'    : 11,
-        'twelve'    : 12,
-        'thirteen'  : 13,
-        'fourteen'  : 14,
-        'fifteen'   : 15,
-        'sixteen'   : 16,
-        'seventeen' : 17,
-        'eighteen'  : 18,
-        'nineteen'  : 19,
-
-        # sadly, kaldi often recognizes these by accident
-        'to'        : 2,
-        'for'       : 4,
-    }
-    def p_number_rule(self, args):
-        '''
-            number_rule ::= number number_set
-            number_rule ::= number thousand_number_set
-            number_rule ::= number million_number_set
-            number_rule ::= number billion_number_set
-        '''
-        return AST('sequence', [ str(args[1]) ])
-    def p_number_set(self, args):
-        '''
-            number_set ::= _firstnumbers
-            number_set ::= _tens
-            number_set ::= _tens _ones
-            number_set ::= _hundreds
-            number_set ::= _hundreds _firstnumbers
-            number_set ::= _hundreds _tens
-            number_set ::= _hundreds _tens _ones
-        '''
-        return sum(args)
-    def p__ones(self, args):
-        '''
-            _ones ::= one
-            _ones ::= two
-            _ones ::= three
-            _ones ::= four
-            _ones ::= five
-            _ones ::= six
-            _ones ::= seven
-            _ones ::= eight
-            _ones ::= nine
-            _ones ::= to
-            _ones ::= for
-        '''
-        return self.small_numbers[args[0].type]
-    def p__firstnumbers(self, args):
-        '''
-            _firstnumbers ::= zero
-            _firstnumbers ::= one
-            _firstnumbers ::= two
-            _firstnumbers ::= three
-            _firstnumbers ::= four
-            _firstnumbers ::= five
-            _firstnumbers ::= six
-            _firstnumbers ::= seven
-            _firstnumbers ::= eight
-            _firstnumbers ::= nine
-            _firstnumbers ::= ten
-            _firstnumbers ::= eleven
-            _firstnumbers ::= twelve
-            _firstnumbers ::= thirteen
-            _firstnumbers ::= fourteen
-            _firstnumbers ::= fifteen
-            _firstnumbers ::= sixteen
-            _firstnumbers ::= seventeen
-            _firstnumbers ::= eighteen
-            _firstnumbers ::= nineteen
-            _firstnumbers ::= to
-            _firstnumbers ::= for
-        '''
-        return self.small_numbers[args[0].type]
-    def p__tens(self, args):
-        '''
-            _tens ::= twenty
-            _tens ::= thirty
-            _tens ::= forty
-            _tens ::= fifty
-            _tens ::= sixty
-            _tens ::= seventy
-            _tens ::= eighty
-            _tens ::= ninety
-        '''
-        value = {
-            'twenty'   : 20,
-            'thirty'   : 30,
-            'forty'    : 40,
-            'fifty'    : 50,
-            'sixty'    : 60,
-            'seventy'  : 70,
-            'eighty'   : 80,
-            'ninety'   : 90
-        }
-        return value[args[0].type]
-    def p__hundreds(self, args):
-        '''
-            _hundreds ::= _ones hundred
-        '''
-        return args[0] * 100
-    def p_thousand_number_set(self, args):
-        '''
-            thousand_number_set ::= number_set thousand
-            thousand_number_set ::= number_set thousand number_set
-        '''
-        total = args[0] * 1000
-        if len(args) > 2: total += args[2]
-        return total
-    def p_million_number_set(self, args):
-        '''
-            million_number_set ::= number_set million
-            million_number_set ::= number_set million number_set
-            million_number_set ::= number_set million thousand_number_set
-        '''
-        total = args[0] * 1000000
-        if len(args) > 2: total += args[2]
-        return total
-    def p_billion_number_set(self, args):
-        '''
-            billion_number_set ::= number_set billion
-            billion_number_set ::= number_set billion number_set
-            billion_number_set ::= number_set billion thousand_number_set
-            billion_number_set ::= number_set billion million_number_set
-        '''
-        total = args[0] * 1000000000
-        if len(args) > 2: total += args[2]
-        return total
 
     def p_sky_letter(self, args):
         '''
@@ -353,57 +237,6 @@ class CoreParser(GenericParser):
         else:
             return AST('mod_plus_key', [ value[args[0].type] ], [ args[1] ] )
 
-    def p_english(self, args):
-        '''
-            english ::= word ANY
-        '''
-        return AST('sequence', [ args[1].extra ])
-
-    def p_word_sentence(self, args):
-        '''
-            word_sentence ::= sentence word_repeat
-        '''
-        if(len(args[1].children) > 0):
-            args[1].children[0].meta = args[1].children[0].meta.capitalize()
-        return args[1]
-
-    def p_word_phrase(self, args):
-        '''
-            word_phrase ::= phrase word_repeat
-        '''
-        return args[1]
-
-    def p_word_repeat(self, args):
-        '''
-            word_repeat ::= raw_word
-            word_repeat ::= raw_word word_repeat
-        '''
-        if(len(args) == 1):
-            return AST('word_sequence', None,
-                [ AST('null', args[0]) ])
-        else:
-            args[1].children.insert(0, AST('null', args[0]))
-            return args[1]
-
-    def p_raw_word(self, args):
-        '''
-            raw_word ::= ANY
-            raw_word ::= zero
-            raw_word ::= one
-            raw_word ::= two
-            raw_word ::= three
-            raw_word ::= four
-            raw_word ::= five
-            raw_word ::= six
-            raw_word ::= seven
-            raw_word ::= eight
-            raw_word ::= nine
-            raw_word ::= to
-            raw_word ::= for
-        '''
-        if(args[0].type == 'ANY'):
-            return args[0].extra
-        return args[0].type
 
 class SingleInputParser(CoreParser):
     def __init__(self):
